@@ -1,4 +1,5 @@
 // Lists all documents with name starting by Holberton in the school collection.
 
-db = db.getSiblingDB('<database_name>');
+var dbName = db.getName();
+db = db.getSiblingDB(dbName);
 db.school.find({ name: /^Holberton/ }).forEach(printjson);
