@@ -14,6 +14,7 @@ from typing import Callable
 # Initialize Redis connection
 cache = redis.Redis(host='localhost', port=6379, db=0)
 
+
 def cache_page(func: Callable[[str], str]) -> Callable[[str], str]:
     """
     Decorator to cache a web page and track access counts.
@@ -53,6 +54,7 @@ def cache_page(func: Callable[[str], str]) -> Callable[[str], str]:
 
         return page_content
     return wrapper
+
 
 @cache_page
 def get_page(url: str) -> str:
