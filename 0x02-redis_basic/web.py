@@ -1,38 +1,69 @@
 #!/usr/bin/env python3
-'''A module with tools for request caching and tracking.
-'''
-import redis
+"""
+web.py
+
+This module provides a function to fetch and cache web pages,
+with an expiration time, and track the number of accesses.
+"""
+
 import requests
+import redis
 from functools import wraps
 from typing import Callable
 
+# Initialize Redis connection
+cache = redis.Redis(host='localhost', port=6379, db=0)
 
-redis_store = redis.Redis()
-'''The module-level Redis instance.
-'''
+def cache_page(func: Callable[[str], str]) -> Callable[[str], str]:
+    """
+    Decorator to cache a web page and track access counts.
 
+    Args:
+        func (Callable[[str], str]): The function to wrap.
 
-def data_cacher(method: Callable) -> Callable:
-    '''Caches the output of fetched data.
-    '''
-    @wraps(method)
-    def invoker(url) -> str:
-        '''The wrapper function for caching the output.
-        '''
-        redis_store.incr(f'count:{url}')
-        result = redis_store.get(f'result:{url}')
-        if result:
-            return result.decode('utf-8')
-        result = method(url)
-        redis_store.set(f'count:{url}', 0)
-        redis_store.setex(f'result:{url}', 10, result)
-        return result
-    return invoker
+    Returns:
+        Callable[[str], str]: The wrapped function.
+    """
+    @wraps(func)
+    def wrapper(url: str) -> str:
+        """
+        Wrapper function to handle caching and tracking.
 
+        Args:
+            url (str): The URL to fetch.
 
-@data_cacher
+        Returns:
+            str: The content of the web page.
+        """
+        # Check if the URL is in cache
+        cached_page = cache.get(f'cached:{url}')
+        if cached_page:
+            # Increment the access count for the URL
+            cache.incr(f'count:{url}')
+            return cached_page.decode('utf-8')
+
+        # Fetch the page if not in cache
+        page_content = func(url)
+
+        # Store the page content in cache with an expiration time of 10 seconds
+        cache.setex(f'cached:{url}', 10, page_content)
+
+        # Increment the access count for the URL
+        cache.incr(f'count:{url}')
+
+        return page_content
+    return wrapper
+
+@cache_page
 def get_page(url: str) -> str:
-    '''Returns the content of a URL after caching the request's response,
-    and tracking the request.
-    '''
-    return requests.get(url).text
+    """
+    Fetch the content of a web page.
+
+    Args:
+        url (str): The URL of the web page.
+
+    Returns:
+        str: The content of the web page.
+    """
+    response = requests.get(url)
+    return response.text
